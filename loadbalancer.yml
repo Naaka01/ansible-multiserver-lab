@@ -1,0 +1,49 @@
+---
+- name: install and configure nginx load balancer
+  hosts: loadbalancer
+  become: yes
+
+  tasks:
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: install nginx
+      apt:
+        name: nginx
+        state: present
+
+    - name: config nginx as Loadbalancer
+      copy:
+        content: |
+          upstream webservers {
+            server 192.168.200.12;
+            server 192.168.200.13;
+          }
+          server {
+            listen 80;
+            location / {
+            proxy_pass http://webservers;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            }
+          }
+        dest: /etc/nginx/sites-available/loadbalancer.conf
+
+    - name: enable load balncer config
+      file:
+        src: /etc/nginx/sites-available/loadbalancer.conf
+        dest: /etc/nginx/sites-enabled/loadbalancer.conf
+        state: link
+
+    - name: removede default nginx site
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+
+    - name: restart nginx
+      service:
+        name: nginx
+        state: restarted
+        enabled: yes

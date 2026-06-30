@@ -1,0 +1,38 @@
+---
+- name: Install and configure MySQL on database server
+  hosts: database
+  become: yes
+
+  tasks:
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install MySQL
+      apt:
+        name:
+          - mysql-server
+          - python3-pymysql
+        state: present
+
+    - name: Start and enable MySQL
+      service:
+        name: mysql
+        state: started
+        enabled: yes
+
+    - name: Create application database
+      mysql_db:
+        name: appdb
+        state: present
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+
+    - name: Create application user
+      mysql_user:
+        name: appuser
+        password: "AppPass123!"
+        priv: "appdb.*:ALL"
+        host: "192.168.200.%"
+        state: present
+        login_unix_socket: /var/run/mysqld/mysqld.sock

@@ -1,0 +1,119 @@
+# FIREWALL on VMs
+- name: Configure UFW firewall on all servers
+  hosts: all
+  become: yes
+
+  tasks:
+
+    - name: Install UFW
+      apt:
+        name: ufw
+        state: present
+
+    - name: Allow SSH
+      ufw:
+        rule: allow
+        port: "22"
+        proto: tcp
+
+    - name: Enable UFW
+      ufw:
+        state: enabled
+        policy: deny
+
+# SPECIFICS rules for LB01
+
+- name: Configure firewall rules for Load Balancer
+  hosts: loadbalancer
+  become: yes
+
+  tasks:
+
+    - name: Allow HTTP on lb01
+      ufw:
+        rule: allow
+        port: "80"
+        proto: tcp
+
+# SPECIFICS Rules for WEBSERVERS
+- name: Configure firewall rules for Web Servers
+  hosts: webservers
+  become: yes
+
+  tasks:
+
+    - name: Allow HTTP only from lb01
+      ufw:
+        rule: allow
+        src: "192.168.200.11"
+        port: "80"
+        proto: tcp
+
+# SPECIFICS rules for DB01
+- name: Configure firewall rules for Database
+  hosts: database
+  become: yes
+
+  tasks:
+    # Allow MySQL only from webservers
+    - name: Allow MySQL only from web01
+      ufw:
+        rule: allow
+        src: "192.168.200.12"
+        port: "3306"
+        proto: tcp
+
+    - name: Allow MySQL only from web02
+      ufw:
+        rule: allow
+        src: "192.168.200.13"
+        port: "3306"
+        proto: tcp
+
+#nginx security headers
+
+- name: Configure Nginx security headers on web servers
+  hosts: webservers
+  become: yes
+
+  tasks:
+
+    - name: Add security headers to Nginx
+      copy:
+        content: |
+          add_header X-Frame-Options "SAMEORIGIN" always;
+          add_header X-Content-Type-Options "nosniff" always;
+          add_header X-XSS-Protection "1; mode=block" always;
+          add_header Referrer-Policy "no-referrer-when-downgrade" always;
+          add_header Strict-Transport-Security "max-age=31536000" always;
+          server_tokens off;
+        dest: /etc/nginx/conf.d/security-headers.conf
+
+    - name: Restart Nginx
+      service:
+        name: nginx
+        state: restarted
+
+#ssh hardening
+- name: Harden SSH on all servers
+  hosts: all
+  become: yes
+
+  tasks:
+
+    - name: Disable root login
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "^PermitRootLogin"
+        line: "PermitRootLogin no"
+
+    - name: Disable password authentication
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "^PasswordAuthentication"
+        line: "PasswordAuthentication no"
+
+    - name: Restart SSH
+      service:
+        name: ssh
+        state: restarted

@@ -1,0 +1,31 @@
+---
+- name: Install and coonfigure Nginx on web servers
+  hosts:  webservers
+  become: yes
+
+  tasks:
+
+    - name: Update apt cahce
+      apt:
+        update_cache: yes
+
+    - name: Install Nginx
+      apt:
+        name: nginx
+        state: present
+
+    - name: enable and start Nginx
+      service:
+        name: nginx
+        state: started
+        enabled: yes
+
+    - name: create custom index page
+      copy:
+        content: |
+           <html>
+              <body>
+                <h1> hello from {{ inventory_hostname }}</h1>
+              </body>
+           </html>
+        dest: /var/www/html/index.html
